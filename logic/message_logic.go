@@ -142,6 +142,10 @@ func MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 				for _, player := range players {
 					message += fmt.Sprintf("%v : %v\n", player.Name, player.Score)
 				}
+				_, err := s.ChannelMessageSend(m.ChannelID, message)
+				if err != nil {
+					fmt.Println(err)
+				}
 
 				InitGame()
 			} else {
@@ -162,7 +166,7 @@ func MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 			if result {
 				cardImage := ReadCardImage()
-				_, err := s.ChannelFileSend(m.ChannelID, "card.jpg", cardImage)
+				_, err := s.ChannelFileSend(m.ChannelID, "image.jpg", cardImage)
 				if err != nil {
 					fmt.Println(err)
 				}
