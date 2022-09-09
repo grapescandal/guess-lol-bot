@@ -21,9 +21,9 @@ var isStart bool
 var openPieces []int
 var turn int = 0
 var maxTurn int = 0
-var currentScore int = 10
-var maxScore int = 10
-var pieceScore int = 9
+var currentScore int = 65
+var maxScore int = 65
+var pieceScore int = 64
 var championData *model.ChampionData
 
 func PrepareChampionData() {
