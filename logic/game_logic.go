@@ -329,6 +329,8 @@ func Answer(message string) (bool, bool, string, *model.Answer) {
 		if string(message[i]) != string(hintLower[i]) {
 			if string(message[i]) == string(a) {
 				hint = replaceAtIndex(hint, rune(answer.Name[i]), i)
+				hintLower = replaceAtIndex(hintLower, rune(answer.Name[i]), i)
+				hintLower = strings.ToLower(hintLower)
 				decreaseCounter++
 			}
 		}
