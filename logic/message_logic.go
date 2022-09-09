@@ -84,7 +84,13 @@ func MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			return
 		}
 
+		players := GetPlayers(m.ChannelID)
+		SetMaxTurn(len(players))
+
 		StartGame()
+		turn := GetTurn()
+
+		playerName := players[turn].Name
 		hint, length := GetHint()
 		message += "Game Started!\n"
 
@@ -93,11 +99,6 @@ func MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if err != nil {
 			fmt.Println(err)
 		}
-
-		turn := GetTurn()
-		players := GetPlayers(m.ChannelID)
-		playerName := players[turn].Name
-		SetMaxTurn(len(players) - 1)
 
 		message1 := fmt.Sprintf("%v's turn", playerName)
 		_, err = s.ChannelMessageSend(m.ChannelID, message1)
@@ -165,7 +166,7 @@ func MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			}
 
 			if result {
-				cardImage := ReadCardImage()
+				cardImage := ReadSkinImage("image.jpg")
 				_, err := s.ChannelFileSend(m.ChannelID, "image.jpg", cardImage)
 				if err != nil {
 					fmt.Println(err)
@@ -239,7 +240,7 @@ func MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 		defer hintImage.Close()
 
-		DecreaseScore()
+		DecreaseScore(1)
 	} else if command == "pass" {
 		message := ""
 

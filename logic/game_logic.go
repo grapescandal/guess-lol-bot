@@ -5,7 +5,10 @@ import (
 	"guess-lol-bot/api"
 	"guess-lol-bot/model"
 	"image"
+	"image/color"
+	"image/draw"
 	"image/jpeg"
+	"log"
 	"math/rand"
 	"os"
 	"strconv"
@@ -25,6 +28,7 @@ var currentScore int = 65
 var maxScore int = 65
 var pieceScore int = 64
 var championData *model.ChampionData
+var hint string = ""
 
 func PrepareChampionData() {
 	championResponse, err := api.GetChampionResponse()
@@ -40,8 +44,10 @@ func PrepareChampionData() {
 
 func InitGame() {
 	isStart = false
+	maxTurn = 0
 	openPieces = []int{}
 	currentScore = maxScore
+	hint = ""
 }
 
 func StartGame() {
@@ -49,12 +55,23 @@ func StartGame() {
 		isStart = true
 		championName := GetRamdomChampion()
 		skin := GetRandomSkin(championName)
+
 		skinNum := strconv.Itoa(skin.Num)
 		GetSkinImage(championName + "_" + skinNum + ".jpg")
+
+		if skin.Name == "default" {
+			skin.Name = skin.Name + " " + championName
+		}
 		answer = model.Answer{
 			Name: skin.Name,
 		}
-		turn = 0
+
+		CreatePuzzleImage()
+
+		s1 := rand.NewSource(time.Now().UnixNano())
+		r1 := rand.New(s1)
+		randomNumber := r1.Intn(maxTurn)
+		turn = randomNumber
 		lengthCounter := 0
 		for _, a := range answer.Name {
 			if isAlphabets(a) {
@@ -76,7 +93,7 @@ func SetMaxTurn(number int) {
 
 func NextTurn() {
 	turn += 1
-	if turn > maxTurn {
+	if turn >= maxTurn {
 		turn = 0
 	}
 }
@@ -117,12 +134,94 @@ func GetSkinImage(url string) {
 	}
 }
 
-func ReadCardImage() *os.File {
-	file, err := os.Open("image.jpg")
+func ReadSkinImage(fileName string) *os.File {
+	file, err := os.Open(fileName)
 	if err != nil {
 		fmt.Printf("Error: %v", err)
 	}
 	return file
+}
+
+func CreatePuzzleImage() {
+
+	width := 1215
+	height := 717
+
+	upLeft := image.Point{0, 0}
+	lowRight := image.Point{width, height}
+
+	img := image.NewRGBA(image.Rectangle{upLeft, lowRight})
+
+	// Colors are defined by Red, Green, Blue, Alpha uint8 values.
+	black := color.Black
+
+	// Set color for each pixel.
+	for x := 0; x < width; x++ {
+		for y := 0; y < height; y++ {
+			img.Set(x, y, black)
+		}
+	}
+
+	file, err := os.Create("puzzle.jpg")
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+	}
+	jpeg.Encode(file, img, nil)
+	defer file.Close()
+}
+
+func UpdatePuzzleImage(inputX int, inputY int, inputWidth int, inputHeight int, piece image.Image) *os.File {
+
+	file := ReadSkinImage("puzzle.jpg")
+	defer file.Close()
+
+	img, err := jpeg.Decode(file)
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+	}
+
+	width := 1215
+	height := 717
+
+	imgRGBA := imageToRGBA(img)
+
+	// Set color for each pixel.
+	for x := 0; x < width; x++ {
+		for y := 0; y < height; y++ {
+			if x >= inputX && x < inputX+inputWidth && y >= inputY && y < inputY+inputHeight {
+				pieceX := x
+				pieceY := y
+				imgRGBA.Set(x, y, piece.At(pieceX, pieceY))
+			}
+		}
+	}
+
+	finalFile, err := os.Create("puzzle.jpg")
+	if err != nil {
+		log.Fatalf("failed to create: %s", err)
+	}
+	jpeg.Encode(finalFile, imgRGBA, nil)
+	defer finalFile.Close()
+
+	finalFile, err = os.Open("puzzle.jpg")
+	if err != nil {
+		log.Fatalf("failed to create: %s", err)
+	}
+	return finalFile
+}
+
+func imageToRGBA(src image.Image) *image.RGBA {
+
+	// No conversion needed if image is an *image.RGBA.
+	if dst, ok := src.(*image.RGBA); ok {
+		return dst
+	}
+
+	// Use the image/draw package to convert to *image.RGBA.
+	b := src.Bounds()
+	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	draw.Draw(dst, dst.Bounds(), src, b.Min, draw.Src)
+	return dst
 }
 
 func GetPieceCardImage(index int) (*os.File, error) {
@@ -154,12 +253,14 @@ func GetPieceCardImage(index int) (*os.File, error) {
 	col := 8
 	indexY := 0
 	indexX := 0
-	actualIndex := index - 1
 	if index > col {
-		indexY = actualIndex / col
-		indexX = actualIndex % col
+		indexY = (index / col)
+		indexX = index % col
+		if indexX == 0 {
+			indexX = col - 1
+		}
 	} else {
-		indexX = actualIndex
+		indexX = index - 1
 	}
 	width := 152
 	height := 90
@@ -187,21 +288,17 @@ func GetPieceCardImage(index int) (*os.File, error) {
 		fmt.Printf("Failed to encode: %v", err)
 	}
 
-	finalFile, err := os.Open("piece.jpg")
-	if err != nil {
-		fmt.Printf("Error: %v", err)
-	}
+	finalFile := UpdatePuzzleImage(x, y, width, height, croppedImg)
 
 	openPieces = append(openPieces, index)
 	return finalFile, nil
 }
 
-func DecreaseScore() {
-	currentScore -= 1
+func DecreaseScore(decrease int) {
+	currentScore -= decrease
 }
 
 func GetHint() (string, int) {
-	hint := ""
 	for _, a := range answer.Name {
 		isAlphabets := isAlphabets(a)
 		if isAlphabets {
@@ -223,18 +320,30 @@ func Answer(message string) (bool, bool, string, *model.Answer) {
 	if len(message) != len(answer.Name) {
 		return false, false, fmt.Sprintf("Please be sure your answer length is %v", len(answer.Name)), nil
 	}
-	if message == answerLower {
-		return true, true, "", &answer
-	} else {
-		hint := ""
-		for i, a := range answerLower {
 
+	decreaseCounter := 0
+	hintLower := strings.ToLower(hint)
+
+	for i, a := range answerLower {
+
+		if string(message[i]) != string(hintLower[i]) {
 			if string(message[i]) == string(a) {
-				hint += string(answer.Name[i])
-			} else {
-				hint += "-"
+				hint = replaceAtIndex(hint, rune(answer.Name[i]), i)
+				decreaseCounter++
 			}
 		}
+	}
+
+	if hintLower == answerLower {
+		return true, true, "", &answer
+	} else {
+		DecreaseScore(decreaseCounter)
 		return false, true, hint, nil
 	}
+}
+
+func replaceAtIndex(in string, r rune, i int) string {
+	out := []rune(in)
+	out[i] = r
+	return string(out)
 }
