@@ -24,6 +24,7 @@ var isStart bool
 var isOpenPiece bool
 var remainingPieces map[int]bool
 
+var startTurn int = 0
 var turn int = 0
 var maxTurn int = 0
 var currentScore int = 64
@@ -74,7 +75,16 @@ func StartGame() {
 		s1 := rand.NewSource(time.Now().UnixNano())
 		r1 := rand.New(s1)
 		randomNumber := r1.Intn(maxTurn)
-		turn = randomNumber
+		startTurn = randomNumber
+
+		if randomNumber == startTurn {
+			turn += 1
+			if turn >= maxTurn {
+				turn = 0
+			}
+		} else {
+			turn = randomNumber
+		}
 		lengthCounter := 0
 		for _, a := range answer.Name {
 			if isAlphabets(a) {
