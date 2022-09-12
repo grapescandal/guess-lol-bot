@@ -262,8 +262,9 @@ func GetPieceCardImage(index int) (*os.File, error) {
 		}
 	}
 
+	displayIndex := index + 1
 	if isAlreadyOpen {
-		err := fmt.Errorf("%v is already open", index)
+		err := fmt.Errorf("%v is already open", displayIndex)
 		return nil, err
 	}
 
@@ -280,14 +281,9 @@ func GetPieceCardImage(index int) (*os.File, error) {
 
 	indexY := 0
 	indexX := 0
-	if index > col {
+	if index >= col {
 		indexY = index / col
 		indexX = index % col
-		if indexX == 0 {
-			indexX = col
-		}
-
-		fmt.Printf("x: %v, y: %v\n", indexX, indexY)
 	} else {
 		indexX = index
 	}

@@ -230,7 +230,7 @@ func OpenCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	isOpenPiece = IsOpenPiece()
+	isOpenPiece = false
 	if isOpenPiece {
 		message += "Can't use open command anymore"
 		_, err := s.ChannelMessageSend(m.ChannelID, message)
