@@ -254,7 +254,7 @@ func GetPieceCardImage(index int) (*os.File, error) {
 	indexY := 0
 	indexX := 0
 	if index > col {
-		indexY = (index / col)
+		indexY = (index / col) - 1
 		indexX = index % col
 		if indexX == 0 {
 			indexX = col - 1
@@ -298,7 +298,7 @@ func DecreaseScore(decrease int) {
 	currentScore -= decrease
 }
 
-func GetHint() (string, int) {
+func GetHint() (string, string) {
 	for _, a := range answer.Name {
 		isAlphabets := isAlphabets(a)
 		if isAlphabets {
@@ -308,7 +308,14 @@ func GetHint() (string, int) {
 		}
 	}
 
-	return hint, len(answer.Name)
+	strList := strings.Split(hint, " ")
+	answerSplitLength := "Length is"
+
+	for _, s := range strList {
+		answerSplitLength += " " + strconv.Itoa(len(s))
+	}
+
+	return hint, answerSplitLength
 }
 
 func isAlphabets(c rune) bool {

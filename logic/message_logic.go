@@ -14,7 +14,7 @@ const PREFIX = ".lol"
 
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the authenticated bot has access to.
-func MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Ignore all messages created by the bot itself
 	// This isn't required in this specific example but it's a good practice.
 	if m.Author.ID == s.State.User.ID {
@@ -94,7 +94,7 @@ func MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		hint, length := GetHint()
 		message += "Game Started!\n"
 
-		message += fmt.Sprintf("Answer is %s, Length is %v", hint, length)
+		message += fmt.Sprintf("Answer is %s, \n%v\n", hint, length)
 		_, err := s.ChannelMessageSend(m.ChannelID, message)
 		if err != nil {
 			fmt.Println(err)
@@ -227,7 +227,7 @@ func MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		hintImage, err := GetPieceCardImage(index)
 		if err != nil {
 			message += err.Error()
-			fmt.Printf("%s", err)
+			fmt.Printf("%s\n", err)
 			_, err := s.ChannelMessageSend(m.ChannelID, message)
 			if err != nil {
 				fmt.Println(err)
@@ -273,5 +273,26 @@ func MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if err != nil {
 			fmt.Println(err)
 		}
+	} else if command == "hello" {
+		sendDirectInvite(s, m)
 	}
+}
+
+func sendDirectInvite(s *discordgo.Session, m *discordgo.MessageCreate) {
+	invite, err := s.ChannelMessageSendEmbed(m.ChannelID, &discordgo.MessageEmbed{
+		Title:       "Checkers game invite from " + m.Author.String(),
+		Description: "Click the  ✅  to accept this invitation, or the  ❌  to deny.",
+		Color:       3447003,
+		Footer: &discordgo.MessageEmbedFooter{
+			Text: "invite:" + m.Author.ID,
+		},
+	})
+
+	if err != nil {
+		s.ChannelMessageSend(m.ChannelID, "")
+		return
+	}
+
+	s.MessageReactionAdd(m.ChannelID, invite.ID, "✅")
+	s.MessageReactionAdd(m.ChannelID, invite.ID, "❌")
 }
