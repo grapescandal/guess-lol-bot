@@ -21,14 +21,18 @@ import (
 
 var answer model.Answer
 var isStart bool
-var openPieces []int
+var isOpenPiece bool
+var remainingPieces map[int]bool
+
 var turn int = 0
 var maxTurn int = 0
-var currentScore int = 65
-var maxScore int = 65
+var currentScore int = 64
+var maxScore int = 64
 var pieceScore int = 64
 var championData *model.ChampionData
 var hint string = ""
+var row int = 8
+var col int = 8
 
 func PrepareChampionData() {
 	championResponse, err := api.GetChampionResponse()
@@ -44,8 +48,6 @@ func PrepareChampionData() {
 
 func InitGame() {
 	isStart = false
-	maxTurn = 0
-	openPieces = []int{}
 	currentScore = maxScore
 	hint = ""
 }
@@ -53,6 +55,7 @@ func InitGame() {
 func StartGame() {
 	if !isStart {
 		isStart = true
+		isOpenPiece = false
 		championName := GetRamdomChampion()
 		skin := GetRandomSkin(championName)
 
@@ -83,19 +86,26 @@ func StartGame() {
 	}
 }
 
-func GetTurn() int {
-	return turn
+func GetTurn(channelID string) (int, *model.Player) {
+	players := GetPlayers(channelID)
+	player := players[turn]
+	return turn, player
 }
 
 func SetMaxTurn(number int) {
 	maxTurn = number
 }
 
-func NextTurn() {
+func NextTurn(channelID string) (int, string) {
+	players := GetPlayers(channelID)
 	turn += 1
 	if turn >= maxTurn {
 		turn = 0
 	}
+
+	isOpenPiece = false
+	player := players[turn]
+	return turn, player.Name
 }
 
 func GetRamdomChampion() string {
@@ -143,6 +153,11 @@ func ReadSkinImage(fileName string) *os.File {
 }
 
 func CreatePuzzleImage() {
+	remainingPieces = make(map[int]bool)
+	piecesLength := row * col
+	for i := 0; i < piecesLength; i++ {
+		remainingPieces[i] = false
+	}
 
 	width := 1215
 	height := 717
@@ -225,12 +240,15 @@ func imageToRGBA(src image.Image) *image.RGBA {
 }
 
 func GetPieceCardImage(index int) (*os.File, error) {
+	index = index - 1
 
 	isAlreadyOpen := false
-	for _, i := range openPieces {
-		if index == i {
-			isAlreadyOpen = true
-			break
+	for key, value := range remainingPieces {
+		if index == key {
+			if value {
+				isAlreadyOpen = true
+				break
+			}
 		}
 	}
 
@@ -250,17 +268,18 @@ func GetPieceCardImage(index int) (*os.File, error) {
 		fmt.Printf("Failed to decode: %v", err)
 	}
 
-	col := 8
 	indexY := 0
 	indexX := 0
 	if index > col {
-		indexY = (index / col) - 1
+		indexY = index / col
 		indexX = index % col
 		if indexX == 0 {
-			indexX = col - 1
+			indexX = col
 		}
+
+		fmt.Printf("x: %v, y: %v\n", indexX, indexY)
 	} else {
-		indexX = index - 1
+		indexX = index
 	}
 	width := 152
 	height := 90
@@ -290,8 +309,13 @@ func GetPieceCardImage(index int) (*os.File, error) {
 
 	finalFile := UpdatePuzzleImage(x, y, width, height, croppedImg)
 
-	openPieces = append(openPieces, index)
+	remainingPieces[index] = true
+	isOpenPiece = true
 	return finalFile, nil
+}
+
+func IsOpenPiece() bool {
+	return isOpenPiece
 }
 
 func DecreaseScore(decrease int) {
@@ -355,4 +379,8 @@ func replaceAtIndex(in string, r rune, i int) string {
 	out := []rune(in)
 	out[i] = r
 	return string(out)
+}
+
+func GetRemainingPieces() *map[int]bool {
+	return &remainingPieces
 }

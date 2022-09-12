@@ -24,3 +24,27 @@ func GetPlayer(chanelID string, userID string) *model.Player {
 func GetPlayers(chanelID string) []*model.Player {
 	return lobbies[chanelID].Player
 }
+
+func RemovePlayer(chanelID string, userID string) (bool, string) {
+	removedPlayerName := ""
+	players := GetPlayers(chanelID)
+	found := false
+	for i := 0; i < len(players); i++ {
+		player := players[i]
+		if player.UserID == userID {
+			removedPlayerName = player.Name
+			players = append(players[:i], players[i+1:]...)
+			i-- // Important: decrease index
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return found, ""
+	}
+
+	lobby := GetLobby(chanelID)
+	lobby.Player = players
+	return found, removedPlayerName
+}
