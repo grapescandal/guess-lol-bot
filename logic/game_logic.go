@@ -23,6 +23,7 @@ import (
 var answer model.Answer
 var isStart bool
 var isOpenPiece bool
+var openingCount int = 0
 var remainingPieces map[int]bool
 
 var currentRound int = 0
@@ -30,6 +31,7 @@ var maxRound int = 5
 var startTurn int = 0
 var turn int = 0
 var maxTurn int = 0
+var player *model.Player
 var currentScore int = 64
 var maxScore int = 64
 var pieceScore int = 64
@@ -56,7 +58,7 @@ func InitGame() {
 	hint = ""
 }
 
-func StartGame() {
+func StartGame(channelID string) {
 	if !isStart {
 		isStart = true
 		isOpenPiece = false
@@ -88,6 +90,8 @@ func StartGame() {
 		} else {
 			turn = randomNumber
 		}
+
+		_, player = GetTurn(channelID)
 		lengthCounter := 0
 		for _, a := range answer.Name {
 			if isAlphabets(a) {
@@ -117,7 +121,8 @@ func NextTurn(channelID string) (int, string) {
 	}
 
 	isOpenPiece = false
-	player := players[turn]
+	openingCount = 0
+	player = players[turn]
 	return turn, player.Name
 }
 
@@ -319,12 +324,14 @@ func GetPieceCardImage(index int) (*os.File, error) {
 	finalFile := UpdatePuzzleImage(x, y, width, height, croppedImg)
 
 	remainingPieces[index] = true
-	isOpenPiece = true
 	return finalFile, nil
 }
 
-func IsOpenPiece() bool {
-	return isOpenPiece
+func IncreaseOpeningCount() {
+	openingCount++
+	if openingCount == player.OpeningCount {
+		isOpenPiece = true
+	}
 }
 
 func DecreaseScore(decrease int) {

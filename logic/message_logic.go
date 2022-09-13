@@ -122,7 +122,7 @@ func StartCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	SetMaxTurn(len(players))
 
 	InitGame()
-	StartGame()
+	StartGame(m.ChannelID)
 	_, player := GetTurn(m.ChannelID)
 
 	playerName := player.Name
@@ -187,6 +187,11 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 			if err != nil {
 				fmt.Println(err)
 			}
+			message2 := "Type command .lol item to get random item\n"
+			_, err = s.ChannelMessageSend(m.ChannelID, message2)
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 
 		if result {
@@ -239,7 +244,6 @@ func OpenCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	isOpenPiece = false
 	if isOpenPiece {
 		message += "Can't use open command anymore"
 		_, err := s.ChannelMessageSend(m.ChannelID, message)
@@ -285,6 +289,7 @@ func OpenCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	defer hintImage.Close()
 
 	DecreaseScore(1)
+	IncreaseOpeningCount()
 }
 
 func PassCommand(s *discordgo.Session, m *discordgo.MessageCreate) {

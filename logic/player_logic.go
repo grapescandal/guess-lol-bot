@@ -7,6 +7,7 @@ func CreatePlayer(name string, userID string) *model.Player {
 	player.Name = name
 	player.Score = 0
 	player.UserID = userID
+	player.OpeningCount = 1
 	return player
 }
 

@@ -1,0 +1,92 @@
+{
+    "itemList": [
+      {
+        "id": 0,
+        "name": "Renewal Tunic",
+        "imagePath": "Renewel_Tunic.png",
+        "description": "+50 score",
+        "duration": 1,
+        "rank": 0
+      },
+      {
+        "id": 1,
+        "name": "Sword of the Divine",
+        "imagePath": "Sword_of_the_Divine.png",
+        "description": "Set opening count by 1 for 3 turn",
+        "duration": 3,
+        "rank": 5
+      },
+      {
+        "id": 2,
+        "name": "Ionic Spark",
+        "imagePath": "Ionic_Spark.png",
+        "description": "Decrease other player score by 50",
+        "duration": 1,
+        "rank": 2
+      },
+      {
+        "id": 3,
+        "name": "Stealth Ward",
+        "imagePath": "Stealth_Ward.png",
+        "description": "Random open a piece of image",
+        "duration": 1,
+        "rank": 1
+      },
+      {
+        "id": 4,
+        "name": "Vision Ward",
+        "imagePath": "Vision_Ward.png",
+        "description": "Random close a piece of image",
+        "duration": 1,
+        "rank": 1
+      },
+      {
+        "id": 5,
+        "name": "Rod of Ages",
+        "imagePath": "Rod_of_Ages.png",
+        "description": "Reveal alphabets at the start and end of answer",
+        "duration": 1,
+        "rank": 2
+      },
+      {
+        "id": 6,
+        "name": "Will of the Ancients",
+        "imagePath": "Will_of_the_Ancients.png",
+        "description": "+10 score, repeat for each alphabet you answer correctly this round",
+        "duration": 1,
+        "rank": 4
+      },
+      {
+        "id": 7,
+        "name": "Morellonomicon",
+        "imagePath": "Morellonomicon.png",
+        "description": "This puzzle score divide by 2",
+        "duration": 1,
+        "rank": 3
+      },
+      {
+        "id": 8,
+        "name": "Guardian Angel",
+        "imagePath": "Guardian_Angel.png",
+        "description": "Got second turn",
+        "duration": 1,
+        "rank": 5
+      },
+      {
+        "id": 9,
+        "name": "Old Deathfire Grasp",
+        "imagePath": "Old_Deathfire_Grasp.png",
+        "description": "Skip next player's turn",
+        "duration": 1,
+        "rank": 3
+      },
+      {
+        "id": 10,
+        "name": "Zhonya's Hourglass",
+        "imagePath": "Zhonyas_Hourglass.png",
+        "description": "Skip yourss turn",
+        "duration": 1,
+        "rank": 3
+      }
+    ]
+  }
