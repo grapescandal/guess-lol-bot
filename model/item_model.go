@@ -20,6 +20,5 @@ type Item struct {
 	Name        string `json:"name"`
 	ImagePath   string `json:"imagePath"`
 	Description string `json:"description"`
-	Duration    int    `json:"duration"`
 	Rank        int    `json:"rank"`
 }

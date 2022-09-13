@@ -22,18 +22,22 @@ import (
 
 var answer model.Answer
 var isStart bool
+var isItemPhase bool
 var isOpenPiece bool
 var openingCount int = 0
+var isAnswer bool
+var answerCount int = 0
 var remainingPieces map[int]bool
+var openPieces []int
 
 var currentRound int = 0
 var maxRound int = 5
 var startTurn int = 0
 var turn int = 0
 var maxTurn int = 0
-var player *model.Player
 var currentScore int = 64
 var maxScore int = 64
+var additionalScore int = 0
 var pieceScore int = 64
 var championData *model.ChampionData
 var hint string = ""
@@ -60,8 +64,8 @@ func InitGame() {
 
 func StartGame(channelID string) {
 	if !isStart {
-		isStart = true
 		isOpenPiece = false
+		isAnswer = false
 		championName := GetRamdomChampion()
 		skin := GetRandomSkin(championName)
 
@@ -76,22 +80,8 @@ func StartGame(channelID string) {
 		}
 
 		CreatePuzzleImage()
+		isStart = true
 
-		s1 := rand.NewSource(time.Now().UnixNano())
-		r1 := rand.New(s1)
-		randomNumber := r1.Intn(maxTurn)
-		startTurn = randomNumber
-
-		if randomNumber == startTurn {
-			turn += 1
-			if turn >= maxTurn {
-				turn = 0
-			}
-		} else {
-			turn = randomNumber
-		}
-
-		_, player = GetTurn(channelID)
 		lengthCounter := 0
 		for _, a := range answer.Name {
 			if isAlphabets(a) {
@@ -101,6 +91,10 @@ func StartGame(channelID string) {
 		maxScore = lengthCounter + pieceScore
 		currentScore = maxScore
 	}
+}
+
+func SkipItemPhase() {
+	isItemPhase = false
 }
 
 func GetTurn(channelID string) (int, *model.Player) {
@@ -113,17 +107,37 @@ func SetMaxTurn(number int) {
 	maxTurn = number
 }
 
-func NextTurn(channelID string) (int, string) {
+func NextTurn(channelID string, increment int) (int, string) {
+	if !isStart {
+		s1 := rand.NewSource(time.Now().UnixNano())
+		r1 := rand.New(s1)
+		randomNumber := r1.Intn(maxTurn)
+		startTurn = randomNumber
+		if randomNumber == startTurn {
+			turn += 1
+			if turn >= maxTurn {
+				turn = 0
+			}
+		} else {
+			turn = randomNumber
+		}
+	}
+
 	players := GetPlayers(channelID)
-	turn += 1
+	turn += increment
 	if turn >= maxTurn {
-		turn = 0
+		turnIndex := turn - maxTurn
+		turn = turnIndex
 	}
 
 	isOpenPiece = false
+	isItemPhase = true
+	isAnswer = false
 	openingCount = 0
-	player = players[turn]
-	return turn, player.Name
+	additionalScore = 0
+	player := players[turn]
+	message := fmt.Sprintf("%v's turn\n", player.Name)
+	return turn, message
 }
 
 func GetRamdomChampion() string {
@@ -172,6 +186,7 @@ func ReadSkinImage(fileName string) *os.File {
 
 func CreatePuzzleImage() {
 	remainingPieces = make(map[int]bool)
+	openPieces = []int{}
 	piecesLength := row * col
 	for i := 0; i < piecesLength; i++ {
 		remainingPieces[i] = false
@@ -203,7 +218,7 @@ func CreatePuzzleImage() {
 	defer file.Close()
 }
 
-func UpdatePuzzleImage(inputX int, inputY int, inputWidth int, inputHeight int, piece image.Image) *os.File {
+func UpdatePuzzleImage(inputX int, inputY int, inputWidth int, inputHeight int, piece image.Image, open bool) *os.File {
 
 	file := ReadSkinImage("puzzle.jpg")
 	defer file.Close()
@@ -218,13 +233,23 @@ func UpdatePuzzleImage(inputX int, inputY int, inputWidth int, inputHeight int, 
 
 	imgRGBA := imageToRGBA(img)
 
-	// Set color for each pixel.
-	for x := 0; x < width; x++ {
-		for y := 0; y < height; y++ {
-			if x >= inputX && x < inputX+inputWidth && y >= inputY && y < inputY+inputHeight {
-				pieceX := x
-				pieceY := y
-				imgRGBA.Set(x, y, piece.At(pieceX, pieceY))
+	if open {
+		// Set color for each pixel.
+		for x := 0; x < width; x++ {
+			for y := 0; y < height; y++ {
+				if x >= inputX && x < inputX+inputWidth && y >= inputY && y < inputY+inputHeight {
+					pieceX := x
+					pieceY := y
+					imgRGBA.Set(x, y, piece.At(pieceX, pieceY))
+				}
+			}
+		}
+	} else {
+		for x := 0; x < width; x++ {
+			for y := 0; y < height; y++ {
+				if x >= inputX && x < inputX+inputWidth && y >= inputY && y < inputY+inputHeight {
+					imgRGBA.Set(x, y, color.Black)
+				}
 			}
 		}
 	}
@@ -257,7 +282,7 @@ func imageToRGBA(src image.Image) *image.RGBA {
 	return dst
 }
 
-func GetPieceCardImage(index int) (*os.File, error) {
+func OpenPieceImage(index int) (*os.File, error) {
 	index = index - 1
 
 	isAlreadyOpen := false
@@ -321,17 +346,61 @@ func GetPieceCardImage(index int) (*os.File, error) {
 		fmt.Printf("Failed to encode: %v", err)
 	}
 
-	finalFile := UpdatePuzzleImage(x, y, width, height, croppedImg)
+	finalFile := UpdatePuzzleImage(x, y, width, height, croppedImg, true)
 
 	remainingPieces[index] = true
+	fmt.Printf("Add: %v\n", index)
+	openPieces = append(openPieces, index)
 	return finalFile, nil
 }
 
-func IncreaseOpeningCount() {
+func ClosePieceImage(index int) (*os.File, error) {
+	indexY := 0
+	indexX := 0
+	if index >= col {
+		indexY = index / col
+		indexX = index % col
+	} else {
+		indexX = index
+	}
+	width := 152
+	height := 90
+	x := width * (indexX)
+	y := height * (indexY)
+
+	finalFile := UpdatePuzzleImage(x, y, width, height, nil, false)
+
+	remainingPieces[index] = false
+	for i := 0; i < len(openPieces); i++ {
+		openPiece := openPieces[i]
+		if openPiece == index {
+			openPieces = append(openPieces[:i], openPieces[i+1:]...)
+			i--
+			break
+		}
+	}
+
+	return finalFile, nil
+}
+
+func IncreaseOpeningCount(player *model.Player) {
 	openingCount++
 	if openingCount == player.OpeningCount {
 		isOpenPiece = true
+		player.OpeningCount = 1
 	}
+}
+
+func IncreaseAnswerCount(player *model.Player) {
+	answerCount++
+	if answerCount == player.AnswerCount {
+		isAnswer = true
+		player.AnswerCount = 1
+	}
+}
+
+func IncreaseScore(increase int) {
+	currentScore += increase
 }
 
 func DecreaseScore(decrease int) {
@@ -391,6 +460,10 @@ func Answer(message string) (bool, bool, string, *model.Answer) {
 	}
 }
 
+func GetFirstAndLastAlphabet() string {
+	return fmt.Sprintf("%v, %v\n", string(answer.Name[0]), string(answer.Name[len(answer.Name)-1]))
+}
+
 func replaceAtIndex(in string, r rune, i int) string {
 	out := []rune(in)
 	out[i] = r
@@ -436,4 +509,11 @@ func EndGame(players []*model.Player) string {
 	scoreboard += fmt.Sprintf("Game ended\n %v win!\n", players[0].Name)
 
 	return scoreboard
+}
+
+func RandomItem() int {
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	randomNumber := r1.Intn(len(itemList.ItemList))
+	return randomNumber
 }

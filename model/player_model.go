@@ -5,4 +5,5 @@ type Player struct {
 	UserID       string
 	Score        int
 	OpeningCount int
+	AnswerCount  int
 }

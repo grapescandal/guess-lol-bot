@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"guess-lol-bot/model"
 	"io/ioutil"
-	"os"
+	"math/rand"
+	"sort"
+	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 var itemList *model.ItemList
 
-func ReadJsonItem() *model.ItemList {
-	jsonFile, err := os.Open("itemList.json")
+func ReadJsonItem() {
+	file, err := ioutil.ReadFile("D:/Works/golang/guess-lol-bot/data/itemList.json")
 	// if we os.Open returns an error then handle it
 	if err != nil {
 		fmt.Println(err)
@@ -19,36 +23,182 @@ func ReadJsonItem() *model.ItemList {
 	fmt.Println("Successfully Opened itemList.json")
 	// defer the closing of our jsonFile so that we can parse it later on
 
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	defer jsonFile.Close()
-
 	itemList = new(model.ItemList)
-	json.Unmarshal(byteValue, &itemList)
-	return itemList
+	json.Unmarshal(file, &itemList)
 }
 
 func GetItem(itemID int) model.Item {
 	item := new(model.Item)
 
-	for _, i := range itemList.ItemList {
-		if i.Id == itemID {
-			item = &i
+	for i, j := range itemList.ItemList {
+		if j.Id == itemID {
+			item = &itemList.ItemList[i]
+			break
 		}
 	}
 
 	return *item
 }
 
-func UseItem(itemID int, user *model.Player, players []*model.Player) string {
-	item := GetItem(itemID)
+func GetItemRank(r model.Rank) string {
+	switch r {
+	case model.Bronze:
+		return "Bronze"
+	case model.Silver:
+		return "Silver"
+	case model.Gold:
+		return "Gold"
+	case model.Platinum:
+		return "Platinum"
+	case model.Diamond:
+		return "Diamond"
+	case model.Challenger:
+		return "Challenger"
+	}
+	return "Iron"
+}
 
-	switch item.Id {
-	case 0:
-		user.Score += 50
-	case 1:
-		user.OpeningCount = 2
-	default:
+func UseItem(s *discordgo.Session, m *discordgo.MessageCreate, item *model.Item, user *model.Player, players []*model.Player) {
+	result := fmt.Sprintf("Item used!\n%s\n", item.Description)
+	_, err := s.ChannelMessageSend(m.ChannelID, result)
+	if err != nil {
+		fmt.Println(err)
 	}
 
-	return "Item used"
+	message := ""
+
+	switch item.Name {
+	case "Renewal Tunic":
+		user.Score += 20
+		message = fmt.Sprintf("%v: %v", user.Name, user.Score)
+		_, err := s.ChannelMessageSend(m.ChannelID, message)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		scoreboard := "----------Scoreboard----------\n"
+		sort.SliceStable(players, func(i, j int) bool {
+			return players[i].Score > players[j].Score
+		})
+		for _, player := range players {
+			scoreboard += fmt.Sprintf("%v : %v\n", player.Name, player.Score)
+		}
+
+		_, err = s.ChannelMessageSend(m.ChannelID, scoreboard)
+		if err != nil {
+			fmt.Println(err)
+		}
+	case "Sword of the Divine":
+		user.OpeningCount = 3
+	case "Ionic Spark":
+		for i, p := range players {
+			if p.UserID != user.UserID {
+				players[i].Score -= 30
+				if players[i].Score <= 0 {
+					players[i].Score = 0
+				}
+			}
+		}
+
+		scoreboard := "----------Scoreboard----------\n"
+		sort.SliceStable(players, func(i, j int) bool {
+			return players[i].Score > players[j].Score
+		})
+		for _, player := range players {
+			scoreboard += fmt.Sprintf("%v : %v\n", player.Name, player.Score)
+		}
+
+		_, err := s.ChannelMessageSend(m.ChannelID, scoreboard)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+	case "Stealth Ward":
+		s1 := rand.NewSource(time.Now().UnixNano())
+		r1 := rand.New(s1)
+		index := r1.Intn(col * row)
+
+		hintImage, err := OpenPieceImage(index)
+		if err != nil {
+			result += err.Error()
+			fmt.Printf("%s\n", err)
+			_, err := s.ChannelMessageSend(m.ChannelID, result)
+			if err != nil {
+				fmt.Println(err)
+			}
+			return
+		}
+
+		_, err = s.ChannelFileSend(m.ChannelID, "card.jpg", hintImage)
+		if err != nil {
+			fmt.Println(err)
+		}
+		defer hintImage.Close()
+		DecreaseScore(1)
+	case "Vision Ward":
+		if len(openPieces) == 0 {
+			message = "Nothing happen"
+			_, err := s.ChannelMessageSend(m.ChannelID, message)
+			if err != nil {
+				fmt.Println(err)
+			}
+			return
+		}
+		s1 := rand.NewSource(time.Now().UnixNano())
+		r1 := rand.New(s1)
+		index := openPieces[r1.Intn(len(openPieces))]
+		fmt.Println(index)
+		hintImage, err := ClosePieceImage(index)
+		if err != nil {
+			message = err.Error()
+			fmt.Printf("%s\n", err)
+			_, err := s.ChannelMessageSend(m.ChannelID, message)
+			if err != nil {
+				fmt.Println(err)
+			}
+			return
+		}
+
+		_, err = s.ChannelFileSend(m.ChannelID, "card.jpg", hintImage)
+		if err != nil {
+			fmt.Println(err)
+		}
+		defer hintImage.Close()
+		IncreaseScore(1)
+	case "Rod of Ages":
+		hint := GetFirstAndLastAlphabet()
+		message = fmt.Sprintf("First and last alphabet is %s", hint)
+		_, err := s.ChannelMessageSend(m.ChannelID, message)
+		if err != nil {
+			fmt.Println(err)
+		}
+	case "Will of the Ancients":
+		remainingAlphabets := 0
+		for _, a := range hint {
+			if string(a) == "-" {
+				remainingAlphabets++
+			}
+		}
+		additionalScore += (remainingAlphabets * 10)
+	case "Morellonomicon":
+		currentScore = currentScore / 2
+	case "Guardian Angel":
+		user.AnswerCount = 2
+	case "Deathfire Grasp":
+		SkipItemPhase()
+		_, turnMessage := NextTurn(m.ChannelID, 1)
+		_, err := s.ChannelMessageSend(m.ChannelID, turnMessage)
+		if err != nil {
+			fmt.Println(err)
+		}
+	case "Zhonya's Hourglass":
+		SkipItemPhase()
+		_, turnMessage := NextTurn(m.ChannelID, 2)
+		_, err := s.ChannelMessageSend(m.ChannelID, turnMessage)
+		if err != nil {
+			fmt.Println(err)
+		}
+	default:
+		return
+	}
 }

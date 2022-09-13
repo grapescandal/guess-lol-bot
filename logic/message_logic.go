@@ -3,6 +3,7 @@ package logic
 import (
 	"fmt"
 	"guess-lol-bot/helper"
+	"guess-lol-bot/model"
 	"strconv"
 	"strings"
 
@@ -50,6 +51,8 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		PassCommand(s, m)
 	} else if command == "leave" {
 		LeaveCommand(s, m)
+	} else if command == "item" {
+		ItemCommand(s, m)
 	}
 }
 
@@ -122,14 +125,14 @@ func StartCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	SetMaxTurn(len(players))
 
 	InitGame()
-	StartGame(m.ChannelID)
-	_, player := GetTurn(m.ChannelID)
+	_, turnMessage := NextTurn(m.ChannelID, 1)
 
-	playerName := player.Name
+	StartGame(m.ChannelID)
+
 	hint, length := GetHint()
 
 	message = fmt.Sprintf("Answer is %s, \n%v\n", hint, length)
-	message += fmt.Sprintf("%v's turn\n", playerName)
+	message += turnMessage
 	_, err := s.ChannelMessageSend(m.ChannelID, message)
 	if err != nil {
 		fmt.Println(err)
@@ -147,8 +150,8 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	_, player := GetTurn(m.ChannelID)
 	players := GetPlayers(m.ChannelID)
+	_, player := GetTurn(m.ChannelID)
 
 	if m.Author.ID != player.UserID {
 		message += "Not your turn"
@@ -159,11 +162,23 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	if isAnswer {
+		message += "Can't use answer command anymore"
+		_, err := s.ChannelMessageSend(m.ChannelID, message)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return
+	}
+
 	answerFromUser := strings.ToLower(helper.FilterInput(m.Content, PREFIX+" "+"answer"))
 	result, success, status, answer := Answer(answerFromUser)
 	if success {
+		SkipItemPhase()
+		IncreaseAnswerCount(player)
+
 		if result {
-			player.Score += currentScore
+			player.Score += currentScore + additionalScore
 			message += fmt.Sprintf("Player: %v win, Answer is %v \n", player.Name, answer.Name)
 			scoreboard := EndRound(players)
 			_, err := s.ChannelMessageSend(m.ChannelID, message)
@@ -181,14 +196,8 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 			if err != nil {
 				fmt.Println(err)
 			}
-			_, player := NextTurn(m.ChannelID)
-			message1 := fmt.Sprintf("%v's turn", player)
-			_, err = s.ChannelMessageSend(m.ChannelID, message1)
-			if err != nil {
-				fmt.Println(err)
-			}
-			message2 := "Type command .lol item to get random item\n"
-			_, err = s.ChannelMessageSend(m.ChannelID, message2)
+			_, turnMessage := NextTurn(m.ChannelID, 1)
+			_, err = s.ChannelMessageSend(m.ChannelID, turnMessage)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -272,7 +281,7 @@ func OpenCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 		return
 	}
-	hintImage, err := GetPieceCardImage(index)
+	hintImage, err := OpenPieceImage(index)
 	if err != nil {
 		message += err.Error()
 		fmt.Printf("%s\n", err)
@@ -288,8 +297,9 @@ func OpenCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 	defer hintImage.Close()
 
+	SkipItemPhase()
 	DecreaseScore(1)
-	IncreaseOpeningCount()
+	IncreaseOpeningCount(player)
 }
 
 func PassCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -315,9 +325,9 @@ func PassCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	_, playerName := NextTurn(m.ChannelID)
-	message = fmt.Sprintf("%v's turn", playerName)
-	_, err := s.ChannelMessageSend(m.ChannelID, message)
+	SkipItemPhase()
+	_, turnMessage := NextTurn(m.ChannelID, 1)
+	_, err := s.ChannelMessageSend(m.ChannelID, turnMessage)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -339,4 +349,58 @@ func LeaveCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 			fmt.Println(err)
 		}
 	}
+}
+
+func ItemCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
+	message := ""
+
+	if !isStart {
+		message += "Game is not start yet"
+		_, err := s.ChannelMessageSend(m.ChannelID, message)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return
+	}
+
+	players := GetPlayers(m.ChannelID)
+	_, player := GetTurn(m.ChannelID)
+
+	if m.Author.ID != player.UserID {
+		message += "Not your turn"
+		_, err := s.ChannelMessageSend(m.ChannelID, message)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return
+	}
+
+	if !isItemPhase {
+		message += "Not item phase"
+		_, err := s.ChannelMessageSend(m.ChannelID, message)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return
+	}
+
+	randomNumber := RandomItem()
+	item := GetItem(randomNumber)
+	itemRank := GetItemRank(model.Rank(item.Rank))
+	description := fmt.Sprintf("Rank: %s\nDescription: %s", itemRank, item.Description)
+	_, err := s.ChannelMessageSendEmbed(m.ChannelID, &discordgo.MessageEmbed{
+		Title:       item.Name,
+		Description: description,
+		Image: &discordgo.MessageEmbedImage{
+			URL:    item.ImagePath,
+			Width:  64,
+			Height: 64,
+		},
+	})
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	UseItem(s, m, &item, player, players)
+	SkipItemPhase()
 }
