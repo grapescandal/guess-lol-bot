@@ -11,6 +11,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,8 @@ var isStart bool
 var isOpenPiece bool
 var remainingPieces map[int]bool
 
+var currentRound int = 0
+var maxRound int = 5
 var startTurn int = 0
 var turn int = 0
 var maxTurn int = 0
@@ -389,4 +392,41 @@ func replaceAtIndex(in string, r rune, i int) string {
 
 func GetRemainingPieces() *map[int]bool {
 	return &remainingPieces
+}
+
+func NextRound() bool {
+	currentRound++
+	canNextRound := true
+	if currentRound == maxRound {
+		canNextRound = false
+		currentRound = 0
+	}
+	return canNextRound
+}
+
+func EndRound(players []*model.Player) string {
+	scoreboard := "----------Scoreboard----------\n"
+	sort.SliceStable(players, func(i, j int) bool {
+		return players[i].Score > players[j].Score
+	})
+	for _, player := range players {
+		scoreboard += fmt.Sprintf("%v : %v\n", player.Name, player.Score)
+	}
+
+	return scoreboard
+}
+
+func EndGame(players []*model.Player) string {
+	isStart = false
+	scoreboard := "----------Scoreboard----------\n"
+	sort.SliceStable(players, func(i, j int) bool {
+		return players[i].Score > players[j].Score
+	})
+	for _, player := range players {
+		scoreboard += fmt.Sprintf("%v : %v\n", player.Name, player.Score)
+	}
+
+	scoreboard += fmt.Sprintf("Game ended\n %v win!\n", players[0].Name)
+
+	return scoreboard
 }

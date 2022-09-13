@@ -3,7 +3,6 @@ package logic
 import (
 	"fmt"
 	"guess-lol-bot/helper"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -94,21 +93,29 @@ func JoinCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 func StartCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	message := ""
-	lobby := GetLobby(m.ChannelID)
-	if lobby == nil {
-		message += "Please create lobby first"
+	if !isStart {
+		lobby := GetLobby(m.ChannelID)
+		if lobby == nil {
+			message += "Please create lobby first"
+			_, err := s.ChannelMessageSend(m.ChannelID, message)
+			if err != nil {
+				fmt.Println(err)
+			}
+			return
+		} else if lobby != nil && len(lobby.Player) == 0 {
+			message += "Please join lobby first"
+			_, err := s.ChannelMessageSend(m.ChannelID, message)
+			if err != nil {
+				fmt.Println(err)
+			}
+			return
+		}
+
+		message = "Game Started!\n"
 		_, err := s.ChannelMessageSend(m.ChannelID, message)
 		if err != nil {
 			fmt.Println(err)
 		}
-		return
-	} else if lobby != nil && len(lobby.Player) == 0 {
-		message += "Please join lobby first"
-		_, err := s.ChannelMessageSend(m.ChannelID, message)
-		if err != nil {
-			fmt.Println(err)
-		}
-		return
 	}
 
 	players := GetPlayers(m.ChannelID)
@@ -120,16 +127,10 @@ func StartCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	playerName := player.Name
 	hint, length := GetHint()
-	message += "Game Started!\n"
 
-	message += fmt.Sprintf("Answer is %s, \n%v\n", hint, length)
+	message = fmt.Sprintf("Answer is %s, \n%v\n", hint, length)
+	message += fmt.Sprintf("%v's turn\n", playerName)
 	_, err := s.ChannelMessageSend(m.ChannelID, message)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	message1 := fmt.Sprintf("%v's turn", playerName)
-	_, err = s.ChannelMessageSend(m.ChannelID, message1)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -164,14 +165,13 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if result {
 			player.Score += currentScore
 			message += fmt.Sprintf("Player: %v win, Answer is %v \n", player.Name, answer.Name)
-			message += "----------Scoreboard----------\n"
-			sort.SliceStable(players, func(i, j int) bool {
-				return players[i].Score > players[j].Score
-			})
-			for _, player := range players {
-				message += fmt.Sprintf("%v : %v\n", player.Name, player.Score)
-			}
+			scoreboard := EndRound(players)
 			_, err := s.ChannelMessageSend(m.ChannelID, message)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			_, err = s.ChannelMessageSend(m.ChannelID, scoreboard)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -196,7 +196,16 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 				fmt.Println(err)
 			}
 
-			StartCommand(s, m)
+			canNextRound := NextRound()
+			if canNextRound {
+				StartCommand(s, m)
+			} else {
+				scoreboard := EndGame(players)
+				_, err := s.ChannelMessageSend(m.ChannelID, scoreboard)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
 		}
 	} else {
 		message += fmt.Sprintf("%v", status)
