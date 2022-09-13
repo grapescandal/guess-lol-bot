@@ -6,6 +6,7 @@ import (
 	"guess-lol-bot/model"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"sort"
 	"time"
 
@@ -15,16 +16,20 @@ import (
 var itemList *model.ItemList
 
 func ReadJsonItem() {
-	file, err := ioutil.ReadFile("D:/Works/golang/guess-lol-bot/data/itemList.json")
-	// if we os.Open returns an error then handle it
+	file, err := os.Open("itemList.json")
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer file.Close()
+
+	jsonFile, err := ioutil.ReadAll(file)
 	if err != nil {
 		fmt.Println(err)
 	}
 	fmt.Println("Successfully Opened itemList.json")
-	// defer the closing of our jsonFile so that we can parse it later on
 
 	itemList = new(model.ItemList)
-	json.Unmarshal(file, &itemList)
+	json.Unmarshal(jsonFile, &itemList)
 }
 
 func GetItem(itemID int) model.Item {
