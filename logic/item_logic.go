@@ -2,6 +2,7 @@ package logic
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"guess-lol-bot/model"
 	"io/ioutil"
@@ -14,19 +15,20 @@ import (
 )
 
 var itemList *model.ItemList
+var fileName = flag.String("itemlist", "itemlist.json", "Location of itemlist file")
 
 func ReadJsonItem() {
-	file, err := os.Open("itemList.json")
+	file, err := os.Open(*fileName)
 	if err != nil {
 		fmt.Println(err)
 	}
 	defer file.Close()
+	fmt.Println("Successfully Opened itemlist.json")
 
 	jsonFile, err := ioutil.ReadAll(file)
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("Successfully Opened itemList.json")
 
 	itemList = new(model.ItemList)
 	json.Unmarshal(jsonFile, &itemList)
@@ -191,14 +193,14 @@ func UseItem(s *discordgo.Session, m *discordgo.MessageCreate, item *model.Item,
 		user.AnswerCount = 2
 	case "Deathfire Grasp":
 		SkipItemPhase()
-		_, turnMessage := NextTurn(m.ChannelID, 1)
+		_, turnMessage := NextTurn(m.ChannelID)
 		_, err := s.ChannelMessageSend(m.ChannelID, turnMessage)
 		if err != nil {
 			fmt.Println(err)
 		}
 	case "Zhonya's Hourglass":
 		SkipItemPhase()
-		_, turnMessage := NextTurn(m.ChannelID, 2)
+		_, turnMessage := NextTurn(m.ChannelID)
 		_, err := s.ChannelMessageSend(m.ChannelID, turnMessage)
 		if err != nil {
 			fmt.Println(err)

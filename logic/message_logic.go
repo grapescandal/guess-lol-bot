@@ -125,7 +125,7 @@ func StartCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	SetMaxTurn(len(players))
 
 	InitGame()
-	_, turnMessage := NextTurn(m.ChannelID, 1)
+	_, turnMessage := NextTurn(m.ChannelID)
 
 	StartGame(m.ChannelID)
 
@@ -162,15 +162,6 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	if isAnswer {
-		message += "Can't use answer command anymore"
-		_, err := s.ChannelMessageSend(m.ChannelID, message)
-		if err != nil {
-			fmt.Println(err)
-		}
-		return
-	}
-
 	answerFromUser := strings.ToLower(helper.FilterInput(m.Content, PREFIX+" "+"answer"))
 	result, success, status, answer := Answer(answerFromUser)
 	if success {
@@ -196,10 +187,13 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 			if err != nil {
 				fmt.Println(err)
 			}
-			_, turnMessage := NextTurn(m.ChannelID, 1)
-			_, err = s.ChannelMessageSend(m.ChannelID, turnMessage)
-			if err != nil {
-				fmt.Println(err)
+
+			if !isAnswer {
+				_, turnMessage := NextTurn(m.ChannelID)
+				_, err = s.ChannelMessageSend(m.ChannelID, turnMessage)
+				if err != nil {
+					fmt.Println(err)
+				}
 			}
 		}
 
@@ -326,7 +320,7 @@ func PassCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	SkipItemPhase()
-	_, turnMessage := NextTurn(m.ChannelID, 1)
+	_, turnMessage := NextTurn(m.ChannelID)
 	_, err := s.ChannelMessageSend(m.ChannelID, turnMessage)
 	if err != nil {
 		fmt.Println(err)

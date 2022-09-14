@@ -107,7 +107,7 @@ func SetMaxTurn(number int) {
 	maxTurn = number
 }
 
-func NextTurn(channelID string, increment int) (int, string) {
+func NextTurn(channelID string) (int, string) {
 	if !isStart {
 		s1 := rand.NewSource(time.Now().UnixNano())
 		r1 := rand.New(s1)
@@ -124,7 +124,7 @@ func NextTurn(channelID string, increment int) (int, string) {
 	}
 
 	players := GetPlayers(channelID)
-	turn += increment
+	turn += 1
 	if turn >= maxTurn {
 		turnIndex := turn - maxTurn
 		turn = turnIndex
@@ -506,7 +506,7 @@ func EndGame(players []*model.Player) string {
 		scoreboard += fmt.Sprintf("%v : %v\n", player.Name, player.Score)
 	}
 
-	scoreboard += fmt.Sprintf("Game ended\n %v win!\n", players[0].Name)
+	scoreboard += fmt.Sprintf("Game ended\n%v win!\n", players[0].Name)
 
 	return scoreboard
 }
