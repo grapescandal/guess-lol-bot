@@ -166,7 +166,6 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	result, success, status, answer := Answer(answerFromUser)
 	if success {
 		SkipItemPhase()
-		IncreaseAnswerCount(player)
 
 		if result {
 			player.Score += currentScore + additionalScore
@@ -215,6 +214,8 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 				}
 			}
 		}
+
+		IncreaseAnswerCount(player)
 	} else {
 		message += fmt.Sprintf("%v", status)
 		_, err := s.ChannelMessageSend(m.ChannelID, message)
