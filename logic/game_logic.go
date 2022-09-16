@@ -62,35 +62,58 @@ func InitGame() {
 	hint = ""
 }
 
-func StartGame(channelID string) {
-	if !isStart {
-		isOpenPiece = false
-		isAnswer = false
-		championName := GetRamdomChampion()
-		skin := GetRandomSkin(championName)
-
-		skinNum := strconv.Itoa(skin.Num)
-		GetSkinImage(championName + "_" + skinNum + ".jpg")
-
-		if skin.Name == "default" {
-			skin.Name = skin.Name + " " + championName
-		}
-		answer = model.Answer{
-			Name: skin.Name,
-		}
-
-		CreatePuzzleImage()
-		isStart = true
-
-		lengthCounter := 0
-		for _, a := range answer.Name {
-			if isAlphabets(a) {
-				lengthCounter++
-			}
-		}
-		maxScore = lengthCounter + pieceScore
-		currentScore = maxScore
+func StartGame(channelID string) string {
+	if isStart {
+		return "Game not start yet"
 	}
+
+	isOpenPiece = false
+	isItemPhase = true
+	isAnswer = false
+	championName := GetRamdomChampion()
+	skin := GetRandomSkin(championName)
+
+	skinNum := strconv.Itoa(skin.Num)
+	GetSkinImage(championName + "_" + skinNum + ".jpg")
+
+	if skin.Name == "default" {
+		skin.Name = skin.Name + " " + championName
+	}
+	answer = model.Answer{
+		Name: skin.Name,
+	}
+
+	CreatePuzzleImage()
+
+	isStart = true
+
+	lengthCounter := 0
+	for _, a := range answer.Name {
+		if isAlphabets(a) {
+			lengthCounter++
+		}
+	}
+	maxScore = lengthCounter + pieceScore
+	currentScore = maxScore
+
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	randomNumber := r1.Intn(maxTurn)
+	startTurn = randomNumber
+	if randomNumber == startTurn {
+		turn += 1
+		if turn >= maxTurn {
+			turn = 0
+		}
+	} else {
+		turn = randomNumber
+	}
+
+	players := GetPlayers(channelID)
+	player := players[turn]
+	message := fmt.Sprintf("%v's turn\n", player.Name)
+	return message
+
 }
 
 func SkipItemPhase() {
@@ -108,21 +131,6 @@ func SetMaxTurn(number int) {
 }
 
 func NextTurn(channelID string) (int, string) {
-	if !isStart {
-		s1 := rand.NewSource(time.Now().UnixNano())
-		r1 := rand.New(s1)
-		randomNumber := r1.Intn(maxTurn)
-		startTurn = randomNumber
-		if randomNumber == startTurn {
-			turn += 1
-			if turn >= maxTurn {
-				turn = 0
-			}
-		} else {
-			turn = randomNumber
-		}
-	}
-
 	players := GetPlayers(channelID)
 	turn += 1
 	if turn >= maxTurn {
@@ -502,8 +510,9 @@ func EndGame(players []*model.Player) string {
 	sort.SliceStable(players, func(i, j int) bool {
 		return players[i].Score > players[j].Score
 	})
-	for _, player := range players {
+	for i, player := range players {
 		scoreboard += fmt.Sprintf("%v : %v\n", player.Name, player.Score)
+		players[i].Score = 0
 	}
 
 	scoreboard += fmt.Sprintf("Game ended\n%v win!\n", players[0].Name)

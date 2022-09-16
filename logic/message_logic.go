@@ -125,9 +125,7 @@ func StartCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 	SetMaxTurn(len(players))
 
 	InitGame()
-	_, turnMessage := NextTurn(m.ChannelID)
-
-	StartGame(m.ChannelID)
+	turnMessage := StartGame(m.ChannelID)
 
 	hint, length := GetHint()
 
@@ -187,9 +185,10 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 				fmt.Println(err)
 			}
 
+			IncreaseAnswerCount(player)
 			if !isAnswer {
 				_, turnMessage := NextTurn(m.ChannelID)
-				_, err = s.ChannelMessageSend(m.ChannelID, turnMessage)
+				_, err := s.ChannelMessageSend(m.ChannelID, turnMessage)
 				if err != nil {
 					fmt.Println(err)
 				}
@@ -214,8 +213,6 @@ func AnswerCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 				}
 			}
 		}
-
-		IncreaseAnswerCount(player)
 	} else {
 		message += fmt.Sprintf("%v", status)
 		_, err := s.ChannelMessageSend(m.ChannelID, message)
@@ -396,6 +393,6 @@ func ItemCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
 		fmt.Println(err)
 	}
 
-	UseItem(s, m, &item, player, players)
 	SkipItemPhase()
+	UseItem(s, m, &item, player, players)
 }

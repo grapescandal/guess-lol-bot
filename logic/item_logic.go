@@ -186,20 +186,20 @@ func UseItem(s *discordgo.Session, m *discordgo.MessageCreate, item *model.Item,
 				remainingAlphabets++
 			}
 		}
-		additionalScore += (remainingAlphabets * 10)
+		additionalScore += (remainingAlphabets * 5)
 	case "Morellonomicon":
 		currentScore = currentScore / 2
 	case "Guardian Angel":
 		user.AnswerCount = 2
 	case "Deathfire Grasp":
-		SkipItemPhase()
-		_, turnMessage := NextTurn(m.ChannelID)
-		_, err := s.ChannelMessageSend(m.ChannelID, turnMessage)
-		if err != nil {
-			fmt.Println(err)
+		remainingAlphabets := 0
+		for _, a := range hint {
+			if string(a) == "-" {
+				remainingAlphabets++
+			}
 		}
+		additionalScore -= (remainingAlphabets * 5)
 	case "Zhonya's Hourglass":
-		SkipItemPhase()
 		_, turnMessage := NextTurn(m.ChannelID)
 		_, err := s.ChannelMessageSend(m.ChannelID, turnMessage)
 		if err != nil {
